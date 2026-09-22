@@ -21,3 +21,9 @@ local_analytics.duckdb
 .DS_Store
 .vscode/
 .idea/
+
+# Build and env folders
+dist/
+build/
+.venv/
+*.exe

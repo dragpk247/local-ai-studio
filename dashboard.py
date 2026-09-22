@@ -5,6 +5,7 @@ import requests
 import json
 import time
 import os
+import platform
 from pathlib import Path
 from datetime import datetime
 import duckdb
@@ -70,8 +71,39 @@ def fetch_ollama_models():
     return []
 
 # ----------------------------------------------------------------------
-# Navigation Header
+# Navigation Header & Sidebar
 # ----------------------------------------------------------------------
+st.sidebar.title("⚙️ System Status")
+st.sidebar.subheader("Available Local Models")
+sidebar_models = fetch_ollama_models()
+if sidebar_models:
+    for m in sidebar_models:
+        st.sidebar.markdown(f"📦 `{m}`")
+else:
+    st.sidebar.warning("No models found. Make sure Ollama is running.")
+
+st.sidebar.divider()
+os_choice = st.sidebar.radio(
+    "Select your Operating System:",
+    ["Windows", "Linux", "iOS / macOS"]
+)
+
+actual_os = platform.system()
+is_valid_os = False
+
+if os_choice == "Windows" and actual_os == "Windows":
+    is_valid_os = True
+elif os_choice == "Linux" and actual_os == "Linux":
+    is_valid_os = True
+elif os_choice == "iOS / macOS" and actual_os == "Darwin":
+    is_valid_os = True
+
+if not is_valid_os:
+    st.error(f"❌ **Error:** You selected **{os_choice}**, but you are actually running on **{actual_os}**! Please select the correct Operating System to proceed.")
+    st.stop()
+else:
+    st.sidebar.success(f"Verified **{os_choice}** environment.")
+
 st.title("⚡ Local AI Engineering Studio")
 st.caption("100% Private, Offline & Free. Runs directly on your machine with Ollama, DuckDB, SentencePiece & Streamlit.")
 
