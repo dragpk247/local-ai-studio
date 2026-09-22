@@ -1,0 +1,7 @@
+streamlit>=1.35.0
+pandas>=2.0.0
+plotly>=5.20.0
+duckdb>=1.0.0
+requests>=2.30.0
+google-genai>=2.0.0
+sentencepiece>=0.2.0

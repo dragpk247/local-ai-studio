@@ -1,0 +1,23 @@
+# Python virtual environments
+.venv/
+venv/
+ENV/
+env/
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Local databases & user data logs
+*.duckdb
+*.duckdb.wal
+local_usage.csv
+local_analytics.duckdb
+
+# OS / Editor files
+.DS_Store
+.vscode/
+.idea/
