@@ -20,8 +20,9 @@ st.set_page_config(
     layout="wide"
 )
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "local_analytics.duckdb")
-OLLAMA_BASE_URL = "http://localhost:11434"
+# Database configuration (support for env vars in enterprise)
+DB_PATH = os.environ.get("LOCAL_AI_DB_PATH", os.path.join(os.path.dirname(__file__), "local_analytics.duckdb"))
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
 
 # ----------------------------------------------------------------------
 # Local Database Initialization (DuckDB)
@@ -145,7 +146,7 @@ with tabs[0]:
     models = fetch_ollama_models()
 
     if not models:
-        st.warning("Ollama daemon is not detected at `localhost:11434`. Start it with `ollama serve`.")
+        st.warning(f"Ollama daemon is not detected at `{OLLAMA_BASE_URL}`. Please ensure it is running.")
     else:
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:

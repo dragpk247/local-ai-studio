@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  local-ai-studio:
+    build:
+      context: ..
+      dockerfile: enterprise/Dockerfile
+    ports:
+      - "8501:8501"
+    environment:
+      # Use an environment variable to set the database location to a persisted volume
+      - LOCAL_AI_DB_PATH=/app/data/local_analytics.duckdb
+      # For an enterprise deployment, this should point to a central vLLM/Ollama server
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434 
+    volumes:
+      - studio_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  studio_data:
