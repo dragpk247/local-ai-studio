@@ -40,7 +40,20 @@ def main():
     wait_for_server()
 
     # Create the webview window
-    webview.create_window('Local AI Studio', 'http://localhost:8501', width=1280, height=800)
+    window = webview.create_window('Local AI Studio', 'http://localhost:8501', width=1280, height=800)
+    
+    def on_minimized():
+        logging.info("Window minimized. Auto-unloading Ollama models...")
+        try:
+            import requests
+            r = requests.get("http://localhost:11434/api/tags", timeout=2)
+            if r.status_code == 200:
+                for m in r.json().get("models", []):
+                    requests.post("http://localhost:11434/api/generate", json={"model": m["name"], "keep_alive": 0}, timeout=2)
+        except Exception as e:
+            logging.error(f"Failed to auto-unload models: {e}")
+
+    window.events.minimized += on_minimized
     webview.start()
     
     # Once webview is closed, terminate the subprocess
