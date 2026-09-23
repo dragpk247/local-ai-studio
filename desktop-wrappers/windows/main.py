@@ -28,13 +28,17 @@ def main():
 
     if len(sys.argv) > 1 and sys.argv[1] == '--run-streamlit':
         # We are in the subprocess, run streamlit
+        if sys.stdout is None:
+            sys.stdout = open(os.devnull, 'w')
+        if sys.stderr is None:
+            sys.stderr = open(os.devnull, 'w')
         import streamlit.web.cli as stcli
         sys.argv = ["streamlit", "run", dashboard_path, "--server.headless", "true", "--server.port", "8501", "--global.developmentMode", "false"]
         sys.exit(stcli.main())
 
     # We are in the main process
-    # Start the subprocess
-    proc = subprocess.Popen(cmd)
+    # Start the subprocess with redirected I/O for windowed mode
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
 
     # Wait for Streamlit to become healthy
     wait_for_server()
