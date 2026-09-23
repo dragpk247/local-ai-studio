@@ -14,7 +14,7 @@ pip install pywebview pyinstaller
 2. **Run PyInstaller**:
 Run the following command from the root of the repository (where `dashboard.py` is located) to package the application.
 ```bash
-pyinstaller --onefile --windowed --copy-metadata streamlit --copy-metadata plotly --add-data "dashboard.py;." "desktop-wrappers/windows/main.py"
+pyinstaller --onefile --windowed --copy-metadata streamlit --copy-metadata plotly --collect-data streamlit --collect-data plotly --hidden-import streamlit.runtime.scriptrunner.magic_funcs --add-data "dashboard.py;." "desktop-wrappers/windows/main.py"
 ```
 
 3. **Run the App**:
