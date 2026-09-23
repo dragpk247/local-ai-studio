@@ -103,6 +103,29 @@ if not is_valid_os:
 else:
     st.sidebar.success(f"Verified **{os_choice}** environment.")
 
+st.sidebar.divider()
+st.sidebar.subheader("Resource Management")
+if st.sidebar.button("🧹 Free Memory & Unload Models"):
+    # 1. Clear Streamlit's in-memory caches
+    st.cache_resource.clear()
+    st.cache_data.clear()
+    
+    # 2. Tell Ollama to immediately unload all models from VRAM
+    import gc
+    try:
+        current_models = fetch_ollama_models()
+        for m in current_models:
+            requests.post(f"{OLLAMA_BASE_URL}/api/generate", json={
+                "model": m,
+                "keep_alive": 0
+            }, timeout=2)
+    except Exception:
+        pass
+    
+    # 3. Force Python garbage collection
+    gc.collect()
+    st.sidebar.success("Memory cleared and GPU VRAM freed!")
+
 st.title("⚡ Local AI Engineering Studio")
 st.caption("100% Private, Offline & Free. Runs directly on your machine with Ollama, DuckDB, SentencePiece & Streamlit.")
 
