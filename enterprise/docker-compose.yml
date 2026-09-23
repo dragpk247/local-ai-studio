@@ -1,12 +1,29 @@
 version: '3.8'
 
 services:
+  # The Authentication Proxy (Enterprise Single Sign-On)
+  auth-proxy:
+    image: quay.io/oauth2-proxy/oauth2-proxy:v7.6.0
+    ports:
+      - "80:4180" # Maps standard web port 80 to the proxy
+    environment:
+      - OAUTH2_PROXY_HTTP_ADDRESS=0.0.0.0:4180
+      - OAUTH2_PROXY_UPSTREAMS=http://local-ai-studio:8501
+      - OAUTH2_PROXY_PROVIDER=google # Can be changed to okta, github, microsoft, etc.
+      - OAUTH2_PROXY_CLIENT_ID=your_enterprise_client_id_here
+      - OAUTH2_PROXY_CLIENT_SECRET=your_enterprise_client_secret_here
+      - OAUTH2_PROXY_COOKIE_SECRET=replace_me_with_a_random_32_byte_string
+      - OAUTH2_PROXY_EMAIL_DOMAINS=* # Change to your company domain e.g., @mycompany.com
+    depends_on:
+      - local-ai-studio
+    restart: unless-stopped
+
   local-ai-studio:
     build:
       context: ..
       dockerfile: enterprise/Dockerfile
-    ports:
-      - "8501:8501"
+    expose:
+      - "8501" # Only exposed to the proxy network, NOT to the public internet!
     environment:
       # Use an environment variable to set the database location to a persisted volume
       - LOCAL_AI_DB_PATH=/app/data/local_analytics.duckdb
