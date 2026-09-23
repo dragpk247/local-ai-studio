@@ -27,30 +27,29 @@ OLLAMA_BASE_URL = "http://localhost:11434"
 # Local Database Initialization (DuckDB)
 # ----------------------------------------------------------------------
 def init_db():
-    conn = duckdb.connect(DB_PATH)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS prompt_logs (
-            id VARCHAR PRIMARY KEY,
-            timestamp TIMESTAMP,
-            model VARCHAR,
-            task VARCHAR,
-            prompt VARCHAR,
-            response VARCHAR,
-            prompt_tokens INTEGER,
-            response_tokens INTEGER,
-            total_tokens INTEGER,
-            duration_sec DOUBLE,
-            tokens_per_sec DOUBLE
-        );
-        CREATE TABLE IF NOT EXISTS rag_documents (
-            doc_id VARCHAR PRIMARY KEY,
-            filename VARCHAR,
-            chunk_index INTEGER,
-            content VARCHAR,
-            token_count INTEGER
-        );
-    """)
-    conn.close()
+    with duckdb.connect(DB_PATH) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS prompt_logs (
+                id VARCHAR PRIMARY KEY,
+                timestamp TIMESTAMP,
+                model VARCHAR,
+                task VARCHAR,
+                prompt VARCHAR,
+                response VARCHAR,
+                prompt_tokens INTEGER,
+                response_tokens INTEGER,
+                total_tokens INTEGER,
+                duration_sec DOUBLE,
+                tokens_per_sec DOUBLE
+            );
+            CREATE TABLE IF NOT EXISTS rag_documents (
+                doc_id VARCHAR PRIMARY KEY,
+                filename VARCHAR,
+                chunk_index INTEGER,
+                content VARCHAR,
+                token_count INTEGER
+            );
+        """)
 
 init_db()
 
@@ -188,23 +187,22 @@ with tabs[0]:
                         st.metric("Generation Speed", f"{tps:.1f} tokens/s")
 
                     # Log to DuckDB
-                    conn = duckdb.connect(DB_PATH)
-                    conn.execute("""
-                        INSERT INTO prompt_logs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        str(time.time()),
-                        datetime.now(),
-                        selected_model,
-                        "Interactive Inference",
-                        prompt_input,
-                        full_response,
-                        p_tokens,
-                        eval_count,
-                        p_tokens + eval_count,
-                        round(duration, 3),
-                        round(tps, 2)
-                    ))
-                    conn.close()
+                    with duckdb.connect(DB_PATH) as conn:
+                        conn.execute("""
+                            INSERT INTO prompt_logs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        """, (
+                            str(time.time()),
+                            datetime.now(),
+                            selected_model,
+                            "Interactive Inference",
+                            prompt_input,
+                            full_response,
+                            p_tokens,
+                            eval_count,
+                            p_tokens + eval_count,
+                            round(duration, 3),
+                            round(tps, 2)
+                        ))
                     st.toast("Result logged to DuckDB", icon="💾")
 
                 except Exception as e:
@@ -239,43 +237,41 @@ SentencePiece provides unsupervised text tokenization without cloud dependencies
             tokenizer = get_tokenizer("gemini-2.5-pro")
             # Simple text chunking
             chunks = [doc_body[i:i+chunk_size] for i in range(0, len(doc_body), chunk_size)]
-            conn = duckdb.connect(DB_PATH)
-            for idx, chunk in enumerate(chunks):
-                t_count = tokenizer.count_tokens(chunk).total_tokens
-                conn.execute("""
-                    INSERT OR REPLACE INTO rag_documents VALUES (?, ?, ?, ?, ?)
-                """, (f"{doc_name}_{idx}", doc_name, idx, chunk, t_count))
-            conn.close()
+            with duckdb.connect(DB_PATH) as conn:
+                for idx, chunk in enumerate(chunks):
+                    t_count = tokenizer.count_tokens(chunk).total_tokens
+                    conn.execute("""
+                        INSERT OR REPLACE INTO rag_documents VALUES (?, ?, ?, ?, ?)
+                    """, (f"{doc_name}_{idx}", doc_name, idx, chunk, t_count))
             st.success(f"Indexed {len(chunks)} chunks into DuckDB!")
 
     with col_search:
         st.markdown("##### 🔎 2. Search Indexed Chunks")
         search_query = st.text_input("Enter search keywords:", value="database analytical queries")
         
-        conn = duckdb.connect(DB_PATH)
-        doc_count = conn.execute("SELECT count(*) FROM rag_documents").fetchone()[0]
-        st.caption(f"Currently indexing **{doc_count}** document chunks locally.")
-
-        if search_query and doc_count > 0:
-            # Full-text / keyword matching query in DuckDB
-            terms = [f"%{t}%" for t in search_query.split() if len(t) > 2]
-            if terms:
-                where_clause = " OR ".join(["content ILIKE ?" for _ in terms])
-                res = conn.execute(f"""
-                    SELECT filename, chunk_index, token_count, content 
-                    FROM rag_documents 
-                    WHERE {where_clause}
-                    LIMIT 5
-                """, terms).fetchall()
-
-                if res:
-                    st.write(f"Found **{len(res)}** matching chunks:")
-                    for r in res:
-                        with st.expander(f"📌 {r[0]} (Chunk #{r[1]} | {r[2]} tokens)"):
-                            st.write(r[3])
-                else:
-                    st.info("No matching chunks found for that query.")
-        conn.close()
+        with duckdb.connect(DB_PATH) as conn:
+            doc_count = conn.execute("SELECT count(*) FROM rag_documents").fetchone()[0]
+            st.caption(f"Currently indexing **{doc_count}** document chunks locally.")
+    
+            if search_query and doc_count > 0:
+                # Full-text / keyword matching query in DuckDB
+                terms = [f"%{t}%" for t in search_query.split() if len(t) > 2]
+                if terms:
+                    where_clause = " OR ".join(["content ILIKE ?" for _ in terms])
+                    res = conn.execute(f"""
+                        SELECT filename, chunk_index, token_count, content 
+                        FROM rag_documents 
+                        WHERE {where_clause}
+                        LIMIT 5
+                    """, terms).fetchall()
+    
+                    if res:
+                        st.write(f"Found **{len(res)}** matching chunks:")
+                        for r in res:
+                            with st.expander(f"📌 {r[0]} (Chunk #{r[1]} | {r[2]} tokens)"):
+                                st.write(r[3])
+                    else:
+                        st.info("No matching chunks found for that query.")
 
 # ======================================================================
 # TAB 3: Codebase Token Auditor
@@ -403,9 +399,8 @@ with tabs[4]:
     st.subheader("Query Your Local Analytics Database (DuckDB)")
     st.write("All prompts, token counts, and TPS rates are logged locally to `local_analytics.duckdb`.")
 
-    conn = duckdb.connect(DB_PATH)
-    df_logs = conn.execute("SELECT * FROM prompt_logs ORDER BY timestamp DESC LIMIT 50").df()
-    conn.close()
+    with duckdb.connect(DB_PATH) as conn:
+        df_logs = conn.execute("SELECT * FROM prompt_logs ORDER BY timestamp DESC LIMIT 50").df()
 
     if not df_logs.empty:
         d1, d2, d3, d4 = st.columns(4)
@@ -428,9 +423,8 @@ with tabs[4]:
         )
         if st.button("Run SQL"):
             try:
-                conn = duckdb.connect(DB_PATH)
-                res_df = conn.execute(sql_input).df()
-                conn.close()
+                with duckdb.connect(DB_PATH) as conn:
+                    res_df = conn.execute(sql_input).df()
                 st.dataframe(res_df, use_container_width=True)
             except Exception as sql_err:
                 st.error(f"SQL Error: {sql_err}")
