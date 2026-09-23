@@ -6,6 +6,17 @@ import subprocess
 import urllib.request
 import logging
 
+# Dashboard dependencies (imported here so PyInstaller bundles them)
+import streamlit
+import pandas
+import plotly.express
+import requests
+import duckdb
+try:
+    from google.genai.local_tokenizer import LocalTokenizer
+except ImportError:
+    pass
+
 logging.basicConfig(level=logging.INFO)
 
 def wait_for_server():
